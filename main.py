@@ -31,79 +31,72 @@ from datetime import date
 # Data validator function
 # These commands are for the data loader. This function should go first before data validator
 def spotify_data_loader():
-    file_location_question=str(input(f'Enter 1 to send the data to your Gmail, Enter 2 to send the data to S3, Enter 3 to send the data to Spark/Hadoop:'))
-    if file_location_question == '1':
-        additional_email_question=str(input(f'Are there any other email addresses you would like to send the data to? y/n:'))
+    try:
+        file_location_question=str(input(f'Enter 1 to send the data to your Gmail, Enter 2 to send the data to S3, Enter 3 to send the data to Spark/Hadoop:'))
+        if file_location_question == '1':
+            additional_email_question=str(input(f'Are there any other email addresses you would like to send the data to? y/n:'))
             
-        if additional_email_question == 'y':
-            email_list=[]
-            additional_emails=list(str(input(f'Please enter any additional email addresses and separate them with a comma:')))
-            for email in additional_emails:
-                email_list.append(additional_emails)
-                receiver=additional_emails
+            if additional_email_question == 'y':
+                email_list=[]
+                additional_emails=(str(input(f'Please enter all email addresses and separate them with a comma:')))
+                for email in additional_emails:
+                    email_list.append(additional_emails)
+                    receiver=additional_emails
         
-        if additional_email_question == 'n':
+            if additional_email_question == 'n':
                 receiver=str(input(f'Enter the email address you would like to send the Spotify data to:'))
         
-        if additional_email_question != 'y' or 'n':
-            print(f'Invalid response. Please rerun the script')        
-            return additional_email_question
+            if additional_email_question != 'y' or 'n':
+                print(f'Invalid response. Please rerun the script')        
+                return additional_email_question
 
-        file_type_question=str(input(f'Enter 1 to send/receive the file as a csv file, 2 for xlsv file, 3 for sqlite file:'))
+            file_type_question=str(input(f'Enter 1 to send/receive the file as a csv file, 2 for xlsv file, 3 for sqlite file:'))
         
-        if file_type_question == '1':
-            try:
-                with open('albums.csv', 'w') as csv_file:
-                    parsed_spotify_data.to_csv(csv_file)
+            if file_type_question == '1':
+                try:
+                    with open('albums.csv', 'w') as csv_file:
+                        parsed_spotify_data.to_csv(csv_file)
+              
+                        file=pd.read_csv(csv_file.read())
 
-                with open('albums.csv', 'r', encoding='utf-8') as csv_file:              
-                    spotify_data_csv=parsed_spotify_data.from_csv(csv_file.read())
-                                
-                file=spotify_data_csv
-
-                print(f'Successfully created database file')
-            except:
-                print(f'Could not send csv file. Please rerun the script')
-        if file_type_question == '2':
-            try:
-                with open('albums.xlsv', 'w') as csv_file:
-                    parsed_spotify_data.to_csv(csv_file)
-
-                with open('albums.xlsv', 'r', encoding='utf-8') as csv_file:              
-                    spotify_data_csv=parsed_spotify_data.from_csv(csv_file.read())
-                                
-                file=spotify_data_csv
+                    print(f'Successfully created csv file')
+                except:
+                    print(f'Could not send csv file. Please rerun the script')
+            if file_type_question == '2':
+                try:
+                    with open('albums.xlsv', 'w') as xlsv_file:
+                        parsed_spotify_data.to_csv(xlsv_file)
+              
+                        file=pd.read_excel('albums.xlsv')
                 
-                print(f'Successfully created database file')
-            except:
-                print(f'Could not send csv file. Please rerun the script')
-        if file_type_question == '3':
-            try:
-                database = 'spotify_artist_albums.sqlite'
-                conn = sqlite3.connect(database)
-                with open(database, 'w') as sql_file:
-                    parsed_spotify_data.to_sql(name='albums', con=conn)
-                    conn.close()
                     print(f'Successfully created database file')
+                except:
+                    print(f'Could not send csv file. Please rerun the script')
+            if file_type_question == '3':
+                try:
+                    database = 'spotify_artist_albums.sqlite'
+                    conn = sqlite3.connect(database)
+                    with open(database, 'w') as sql_file:
+                        parsed_spotify_data.to_sql(name='albums', con=conn)
+                        conn.close()
+                    
+                    print(f'Successfully created database file')
+              
+                    file=pd.read_sql(database)
 
-                with open(database, 'r', encoding='utf-8') as sql_file:              
-                    spotify_data_sql=parsed_spotify_data.from_sql(sql_file.read())
+                except:
+                    print(f'Could not send sqlite file. Please rerun the script')
 
-                    file=spotify_data_sql
-            except:
-                print(f'Could not send sqlite file. Please rerun the script')
-
-        if file_type_question != '1' or '2' or '3':
-            print(f'Invalid response. Please rerun the script')
-            return file_type_question
-        
-        with smtplib.SMTP_SSL('smtp.gmail.com', port, context=context) as server:
-            port=465
-            print(f'Ensure that your Gmail security settings are properly configured for Python apps')
-            EMAIL= str(input(f'Enter your email:'))
-            PASSWORD=str(input(f'Enter your password:'))
-            context = ssl.create_default_context()
-            message = MIMEMultipart()
+            else:
+                print(f'Invalid response. Please rerun the script')
+                return file_type_question
+        # Right here and below needs to be fixed. The email portion needs a sender ex: message[TO]:
+            with smtplib.SMTP_SSL('smtp.gmail.com', port, context=context) as server:
+                port=465
+                print(f'Ensure that your Gmail security settings are properly configured for Python apps')
+                EMAIL= str(input(f'Enter your email:'))
+                context = ssl.create_default_context()
+                message = MIMEMultipart()
         
             with open(file, "rb") as attachment:
                 part = MIMEBase("application", "octet-stream")
@@ -112,7 +105,7 @@ def spotify_data_loader():
                 server.quit()
 
 
-    if file_location_question == '2':
+        if file_location_question == '2':
             try:
                 ACCESS_KEY=str(input(f'Enter your Access Key:'))
                 SECRET_ACCESS_KEY=str(input(f'Enter your Secret Access Key:'))
@@ -126,68 +119,62 @@ def spotify_data_loader():
                 s3_client = boto3.client('s3')
                 file_type_question=str(input(f'Enter 1 to send the file as a csv file, 2 for xlsv file, 3 for sqlite file:'))
                 if file_type_question == '1':
-                        try:
-                            with open('albums.csv', 'w') as csv_file:
-                                parsed_spotify_data.to_csv(csv_file)
+                    try:
+                        with open('albums.csv', 'w') as csv_file:
+                            parsed_spotify_data.to_csv(csv_file)
+                            
+                        file=Path('albums.csv')
+                        print(f'Successfully created csv file')
+                    except Exception as e:
+                        print(f'Could not send csv file. Please rerun the script')
+                        print(e)
 
-                            with open('albums.csv', 'r', encoding='utf-8') as csv_file:              
-                                spotify_data_csv=parsed_spotify_data.from_csv(csv_file.read())
-                                
-                            file=spotify_data_csv
-                            print(f'Successfully created database file')
-                        except:
-                            print(f'Could not send csv file. Please rerun the script')
                 if file_type_question == '2':
-                        try:
-                            with open('albums.xlsv', 'w') as excel_file:
-                                parsed_spotify_data.to_excel(excel_file)
+                    try:
+                        with open('albums.xlsv', 'w') as excel_file:
+                            parsed_spotify_data.to_excel(excel_file)
 
-                            with open('albums.xlsv', 'r', encoding='utf-8') as excel_file:              
-                                spotify_data_xlsv=parsed_spotify_data.from_excel(api_output_file.read())
-                            
-                            file=spotify_data_xlsv
-                            
-                            print(f'Successfully created Excel file')
-                        except:
-                            print(f'Could not create Excel file. Please rerun the script')
+                        file=Path('albums.xlsv')
+                        print(f'Successfully created Excel file')
+                    except:
+                        print(f'Could not create Excel file. Please rerun the script')
                 if file_type_question == '3':
-                        try:
-                            database = 'spotify_artist_albums.sqlite'
-                            conn = sqlite3.connect(database)
-                            with open(database, 'w') as sql_file:
-                                parsed_spotify_data.to_sql(name='albums', con=conn)
-                                conn.close()
-                                print(f'Successfully created database file')
-
-                            with open(database, 'r', encoding='utf-8') as sql_file:              
-                                file=parsed_spotify_data.from_sql(sql_file.read())
-                        except:
-                            print(f'Could not send sqlite file. Please rerun the script')
-
-                if file_type_question != '1' or '2' or '3':
-                        print(f'Invalid response. Please rerun the script')
-                        return file_type_question
+                    try:
+                        database = 'spotify_artist_albums.sqlite'
+                        conn = sqlite3.connect(database)
+                        with open(database, 'w') as sql_file:
+                            parsed_spotify_data.to_sql(name='albums', con=conn)
+                            conn.close()
+              
+                        file=Path(database)
+                        print(f'Successfully created database file')
+                    except:
+                        print(f'Could not send sqlite file. Please rerun the script')
 
                 bucket=str(input(f'Enter the name of the bucket you would like to send the file to:'))
                 object_name=str(f'{today} {file}')
                 s3_client.upload_file(file,bucket,object_name)
-                print(f'Your database file named {file} has been successfully uploaded to {bucket} with the name {object_name}')
+                print(f'Your database file has been successfully uploaded to {bucket} with the name {object_name}')
                 return file,object_name,bucket
             
             except Exception as e:
                 print(f'There was an issue uploading the Spotify data to your S3 bucket. Please try again')
                 print(e)
 
-    if file_location_question == '3':
-        try:
-            sparktester()
-            sparked_spotify_data=SparkSession.createDataFrame(parsed_spotify_data)
-            print(sparked_spotify_data)
-        except:
-            print(f'Could not create/send dataframe to Apache Spark. Please rerun the script')
+        if file_location_question == '3':
+            try:
+                sparktester()
+                sparked_spotify_data=SparkSession.builder.getOrCreate().createDataFrame(parsed_spotify_data)
+                print("Spark successfully initialized")
+                print(sparked_spotify_data)
+            except Exception as e:
+                print(f'Could not create/send dataframe to Apache Spark. Please rerun the script')
+                print(e)
                             
-    if file_location_question != '1' or '2' or '3':
-        print(f'Invalid response. Please rerun the script')
+    except Exception as e:
+        print(f'Something went wrong. Please rerun the script')
+        print(e)
+        pass
 
 
 def spotify_data_validator(df: pd.DataFrame) -> bool:
@@ -256,5 +243,5 @@ if __name__ == '__main__':
         print(f'Data extraction process could not finish. Please try again.')
         print(e)
     
-    spotify_data_validator()
+    spotify_data_validator(df=parsed_spotify_data)
     spotify_data_loader()
