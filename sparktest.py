@@ -5,8 +5,9 @@ from pyspark.sql import Row
 from pyspark.sql import SparkSession
 from decouple import config
 
-CLIENT_ID=config('PYSPARK_PYTHON')
-CLIENT_SECRET=config('HADOOP_HOME')
+PYSPARK_HOME=config('PYSPARK_PYTHON')
+HADOOP_HOME=config('HADOOP_HOME')
+HADOOP_HOME_DIR=config('hadoop.home.dir')
 
 
 try:
