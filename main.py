@@ -18,6 +18,7 @@ from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from datetime import date
+import openpyxl
 # List all of the songs that Drake appears on
 
 # List all the songs that Drake's competition has appeared on
@@ -39,12 +40,12 @@ def spotify_data_loader():
             if additional_email_question == 'y':
                 email_list=[]
                 additional_emails=(str(input(f'Please enter all email addresses and separate them with a comma:')))
-                for email in additional_emails:
+                for additional_emails in additional_email_question:
                     email_list.append(additional_emails)
                     receiver=additional_emails
-        
+            # You may need to change below to say list(input(f'Enter email...'))
             if additional_email_question == 'n':
-                receiver=str(input(f'Enter the email address you would like to send the Spotify data to:'))
+                sender_email=str(input(f'Enter the email address you would like to send the Spotify data to:'))
         
             if additional_email_question != 'y' or 'n':
                 print(f'Invalid response. Please rerun the script')        
@@ -57,21 +58,24 @@ def spotify_data_loader():
                     with open('albums.csv', 'w') as csv_file:
                         parsed_spotify_data.to_csv(csv_file)
               
-                        file=pd.read_csv(csv_file.read())
+                        file=Path('albums.csv')
 
                     print(f'Successfully created csv file')
                 except:
                     print(f'Could not send csv file. Please rerun the script')
+                    print(e)
+                    return file_type_question
             if file_type_question == '2':
                 try:
-                    with open('albums.xlsv', 'w') as xlsv_file:
-                        parsed_spotify_data.to_csv(xlsv_file)
+                    with open('albums.xlsx', 'wb') as xlsx_file:
+                        parsed_spotify_data.to_excel(xlsx_file)
               
-                        file=pd.read_excel('albums.xlsv')
+                        file=Path('albums.xlsx')
                 
                     print(f'Successfully created database file')
                 except:
-                    print(f'Could not send csv file. Please rerun the script')
+                    print(f'Could not send the Excel file. Please rerun the script')
+                    return file_type_question
             if file_type_question == '3':
                 try:
                     database = 'spotify_artist_albums.sqlite'
@@ -82,10 +86,12 @@ def spotify_data_loader():
                     
                     print(f'Successfully created database file')
               
-                    file=pd.read_sql(database)
+                    file=Path(database)
 
                 except:
                     print(f'Could not send sqlite file. Please rerun the script')
+                    print(e)
+                    return file_type_question
 
             else:
                 print(f'Invalid response. Please rerun the script')
@@ -94,15 +100,33 @@ def spotify_data_loader():
             with smtplib.SMTP_SSL('smtp.gmail.com', port, context=context) as server:
                 port=465
                 print(f'Ensure that your Gmail security settings are properly configured for Python apps')
-                EMAIL= str(input(f'Enter your email:'))
-                context = ssl.create_default_context()
-                message = MIMEMultipart()
+                EMAIL=str(input(f'Enter your email:'))
+                PASSWORD=str(input(f'Enter your password:'))
+                subject = "An email with attachment from Python"
+                body = "This is an email with attachment sent from Python"
+                sender_email = "my@gmail.com"
+                receiver_email = "your@gmail.com"
+                message=MIMEMultipart("alternative")
+
+                context=ssl.create_default_context()
+                text = """\
+                Thank you for using the Spotify Data ETL.
+                Your file is attached to this email."""
+                
+                html=Path('message.html')
+                MIMEText_text=MIMEText(text,'plain')
+                MIMEText_html=MIMEText(html,'html')
+                message.attach(MIMEText_text)
+                message.attach(MIMEText_html)
+
+                
         
-            with open(file, "rb") as attachment:
-                part = MIMEBase("application", "octet-stream")
-                part.set_payload(attachment.read())          
-                server.sendmail(EMAIL,email_list,message.as_string())
-                server.quit()
+                with open(file, "rb") as attachment:
+                    part=MIMEBase("application", "octet-stream")
+                    part.set_payload(attachment.read())
+                    server.login(EMAIL,PASSWORD)          
+                    server.sendmail(EMAIL,email_list,message.as_string())
+                    server.quit()
 
 
         if file_location_question == '2':
@@ -110,7 +134,6 @@ def spotify_data_loader():
                 ACCESS_KEY=str(input(f'Enter your Access Key:'))
                 SECRET_ACCESS_KEY=str(input(f'Enter your Secret Access Key:'))
                 SESSION_TOKEN=str(input(f'Enter your session token:'))
-                region_name=str(input('What region would you like to work from? (ex: us-east-1):'))
                 session = boto3.Session(
                 aws_access_key_id=ACCESS_KEY, 
                 aws_secret_access_key=SECRET_ACCESS_KEY, 
@@ -120,7 +143,7 @@ def spotify_data_loader():
                 file_type_question=str(input(f'Enter 1 to send the file as a csv file, 2 for xlsv file, 3 for sqlite file:'))
                 if file_type_question == '1':
                     try:
-                        with open('albums.csv', 'w') as csv_file:
+                        with open('albums.csv','w') as csv_file:
                             parsed_spotify_data.to_csv(csv_file)
                             
                         file=Path('albums.csv')
@@ -128,16 +151,20 @@ def spotify_data_loader():
                     except Exception as e:
                         print(f'Could not send csv file. Please rerun the script')
                         print(e)
+                        return file_type_question
 
                 if file_type_question == '2':
                     try:
-                        with open('albums.xlsv', 'w') as excel_file:
-                            parsed_spotify_data.to_excel(excel_file)
+                        with open('albums.xlsx','wb') as xlsx_file:
+                            parsed_spotify_data.to_excel(xlsx_file)
 
-                        file=Path('albums.xlsv')
+                        file=Path('albums.xlsx')
                         print(f'Successfully created Excel file')
-                    except:
+                    except Exception as e:
                         print(f'Could not create Excel file. Please rerun the script')
+                        print(e)
+                        return file_type_question
+
                 if file_type_question == '3':
                     try:
                         database = 'spotify_artist_albums.sqlite'
@@ -150,6 +177,7 @@ def spotify_data_loader():
                         print(f'Successfully created database file')
                     except:
                         print(f'Could not send sqlite file. Please rerun the script')
+                        return file_type_question
 
                 bucket=str(input(f'Enter the name of the bucket you would like to send the file to:'))
                 object_name=str(f'{today} {file}')
