@@ -5,18 +5,12 @@ from pathlib import Path
 import pandas as pd
 from decouple import config
 import sqlite3
-import sqlalchemy
-from pyspark.sql import SparkSession
-from pyspark.conf import SparkConf
-from sparktest import sparktester
 import spotipy
 import spotipy.oauth2 as oauth2
 import boto3
 import smtplib,ssl
 from email import encoders
-from email.mime.base import MIMEBase
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
+import yagmail
 from datetime import date
 import openpyxl
 # List all of the songs that Drake appears on
@@ -27,108 +21,247 @@ import openpyxl
 # and use an asyncio function in a loop to automatically run the data pipeline every 24 hours.
 # current_user_recently_played(limit=50, after=None, before=None)
 
-# Return Top posts by Location in Instagram
+# Put your email and password in environment variables
 
 # Data validator function
 # These commands are for the data loader. This function should go first before data validator
 def spotify_data_loader():
     try:
-        file_location_question=str(input(f'Enter 1 to send the data to your Gmail, Enter 2 to send the data to S3, Enter 3 to send the data to Spark/Hadoop:'))
+        file_location_question=str(input(f'Enter 1 to send the data through Gmail, Enter 2 to send the data to S3:'))
+        
         if file_location_question == '1':
-            additional_email_question=str(input(f'Are there any other email addresses you would like to send the data to? y/n:'))
+            EMAIL_ADDRESS=config('EMAIL_ADDRESS')
+            EMAIL_PASSWORD=config('EMAIL_PASSWORD')
+            yagmail.register(EMAIL_ADDRESS, EMAIL_PASSWORD)
+            yag=yagmail.SMTP(EMAIL_ADDRESS,EMAIL_PASSWORD)
             
-            if additional_email_question == 'y':
-                email_list=[]
-                additional_emails=(str(input(f'Please enter all email addresses and separate them with a comma:')))
-                for additional_emails in additional_email_question:
-                    email_list.append(additional_emails)
-                    receiver=additional_emails
-            # You may need to change below to say list(input(f'Enter email...'))
-            if additional_email_question == 'n':
-                sender_email=str(input(f'Enter the email address you would like to send the Spotify data to:'))
-        
-            if additional_email_question != 'y' or 'n':
-                print(f'Invalid response. Please rerun the script')        
-                return additional_email_question
-
-            file_type_question=str(input(f'Enter 1 to send/receive the file as a csv file, 2 for xlsv file, 3 for sqlite file:'))
-        
-            if file_type_question == '1':
+            email_location_question=str(input(f'Do you have a list of emails saved to the home directory you would like to use? (y/n):'))
+            
+            if email_location_question == 'y':
                 try:
-                    with open('albums.csv', 'w') as csv_file:
-                        parsed_spotify_data.to_csv(csv_file)
-              
-                        file=Path('albums.csv')
-
-                    print(f'Successfully created csv file')
-                except:
-                    print(f'Could not send csv file. Please rerun the script')
-                    print(e)
-                    return file_type_question
-            if file_type_question == '2':
-                try:
-                    with open('albums.xlsx', 'wb') as xlsx_file:
-                        parsed_spotify_data.to_excel(xlsx_file)
-              
-                        file=Path('albums.xlsx')
-                
-                    print(f'Successfully created database file')
-                except:
-                    print(f'Could not send the Excel file. Please rerun the script')
-                    return file_type_question
-            if file_type_question == '3':
-                try:
-                    database = 'spotify_artist_albums.sqlite'
-                    conn = sqlite3.connect(database)
-                    with open(database, 'w') as sql_file:
-                        parsed_spotify_data.to_sql(name='albums', con=conn)
-                        conn.close()
+                    # File conversion
+                    file_type_question=str(input(f'Enter 1 to send the file as a csv file, 2 for xlsx file, 3 for sqlite file:'))
                     
-                    print(f'Successfully created database file')
+                    if file_type_question == '1':
+                        try:
+                            with open('albums.csv', 'w') as csv_file:
+                                parsed_spotify_data.to_csv(csv_file)
+                            
+                            print(f'Successfully created Excel file')
+
+                            control_flow_maintainer=f'Your emails have sent!'
+                            artist=str(input(f'Enter the name of the artist:'))
+
+                            with open('email_list.csv', 'r') as email_list:
+                                imported_file = pd.read_csv(email_list)
+                            
+                            print(f'Successfully loaded email list')
+            
+                            for name in imported_file['name']:
+
+                                text = f"""
+                                    Hello {name} Thank you for using the Spotify Data ETL.
+                                    Your file is attached to this email."""
+                                
+                                subject = f'{artist} Spotify Albums'
+                
+                            for email in imported_file['email']:
+                                with open('albums.csv', 'rb') as attachment:
+                                    yag.send(to=[email],
+                                    subject=subject,
+                                    contents=text,
+                                    attachments=attachment
+                                    ) 
+                        except Exception as e:
+                            print(f'Could not send csv file. Please rerun the script')
+                            print(e)
+                        
+                        print(control_flow_maintainer)
               
-                    file=Path(database)
+                    if file_type_question == '2':
+                        try:
+                            with open('albums.xlsx', 'wb') as xlsx_file:
+                                parsed_spotify_data.to_excel(xlsx_file)
+                            
+                            print(f'Successfully created Excel file')
 
-                except:
-                    print(f'Could not send sqlite file. Please rerun the script')
-                    print(e)
-                    return file_type_question
-
-            else:
-                print(f'Invalid response. Please rerun the script')
-                return file_type_question
-        # Right here and below needs to be fixed. The email portion needs a sender ex: message[TO]:
-            with smtplib.SMTP_SSL('smtp.gmail.com', port, context=context) as server:
-                port=465
-                print(f'Ensure that your Gmail security settings are properly configured for Python apps')
-                EMAIL=str(input(f'Enter your email:'))
-                PASSWORD=str(input(f'Enter your password:'))
-                subject = "An email with attachment from Python"
-                body = "This is an email with attachment sent from Python"
-                sender_email = "my@gmail.com"
-                receiver_email = "your@gmail.com"
-                message=MIMEMultipart("alternative")
-
-                context=ssl.create_default_context()
-                text = """\
-                Thank you for using the Spotify Data ETL.
-                Your file is attached to this email."""
+                            with open('email_list.csv', 'r') as email_list:
+                                imported_file = pd.read_csv(email_list)
                 
-                html=Path('message.html')
-                MIMEText_text=MIMEText(text,'plain')
-                MIMEText_html=MIMEText(html,'html')
-                message.attach(MIMEText_text)
-                message.attach(MIMEText_html)
+                            print(f'Successfully loaded email list')
 
+                            control_flow_maintainer=f'Your emails have sent!'
+                            artist=str(input(f'Enter the name of the artist:'))
+            
+                            for name in imported_file['name']:
+
+                                text = f"""
+                                    Hello {name} Thank you for using the Spotify Data ETL.
+                                    Your file is attached to this email."""
+                                
+                                subject = f'{artist} Spotify Albums'
                 
+                            for email in imported_file['email']:
+                                with open('albums.xlsv', 'rb') as attachment:
+                                    yag.send(to=[email],
+                                    subject=subject,
+                                    contents=text,
+                                    attachments=attachment
+                                    ) 
+                        except Exception as e:
+                            print(f'Could not send the Excel file. Please rerun the script')
+                            print(e)
         
-                with open(file, "rb") as attachment:
-                    part=MIMEBase("application", "octet-stream")
-                    part.set_payload(attachment.read())
-                    server.login(EMAIL,PASSWORD)          
-                    server.sendmail(EMAIL,email_list,message.as_string())
-                    server.quit()
+                        print(control_flow_maintainer)
+            
+                    if file_type_question == '3':
+                        try:
+                            database = 'spotify_artist_albums.sqlite'
+                            conn = sqlite3.connect(database)
+                            with open(database, 'w'):
+                                parsed_spotify_data.to_sql(name='albums', con=conn)
+                                conn.close()
+                    
+                            print(f'Successfully created database file')
+                            
+                            with open('email_list.csv', 'r') as email_list:
+                                imported_file = pd.read_csv(email_list)
+                
+                            print(f'Successfully loaded email list')
 
+                            control_flow_maintainer=f'Your emails have sent!'
+                            artist=str(input(f'Enter the name of the artist:'))
+            
+                            for name in imported_file['name']:
 
+                                text = f"""
+                                    Hello {name} Thank you for using the Spotify Data ETL.
+                                    Your file is attached to this email."""
+                                
+                                subject = f'{artist} Spotify Albums'
+                
+                            for email in imported_file['email']:
+                                with open(database, 'r') as attachment:
+                                    yag.send(to=[email],
+                                    subject=subject,
+                                    contents=text,
+                                    attachments=attachment
+                                    ) 
+
+                        except Exception as e:
+                            print(f'Could not send sqlite file. Please rerun the script')
+                            print(e)
+        
+                    print(control_flow_maintainer)        
+        
+                except Exception as e:
+                    print(f'Sorry there was an error')
+                    print(e)
+
+            if email_location_question == 'n':
+                try:
+                    file_type_question=str(input(f'Enter 1 to send the file as a csv file, 2 for xlsx file, 3 for sqlite file:'))
+                    
+                    if file_type_question == '1':
+                        try:
+                            artist=str(input(f'Enter the name of the artist:'))
+                            additional_emails=str(input(f'Enter the list of emails separated with a comma:'))
+                            additional_email_list=list(additional_emails.split(sep=','))
+                            control_flow_maintainer=f'Your emails have sent!'
+                            with open('albums.csv', 'w') as csv_file:
+                                parsed_spotify_data.to_csv(csv_file)
+                            
+                            print(f'Successfully created csv file')
+            
+
+                            text = f"""
+                                    Hello! Thank you for using the Spotify Data ETL.
+                                    Your file is attached to this email."""
+                                
+                            subject = f'{artist} Spotify Albums'
+                
+                            with open('albums.csv', 'rb') as attachment:
+                                    yag.send(to=additional_email_list,
+                                    subject=subject,
+                                    contents=text,
+                                    attachments=attachment
+                                    ) 
+                        except Exception as e:
+                            print(f'Could not send csv file. Please rerun the script')
+                            print(e)
+                            
+                        
+                        print(control_flow_maintainer)
+              
+                    if file_type_question == '2':
+                        try:
+                            artist=str(input(f'Enter the name of the artist:'))
+                            additional_emails=str(input(f'Enter the list of emails separated with a comma:'))
+                            additional_email_list=list(additional_emails.split(sep=','))
+                            control_flow_maintainer=f'Your emails have sent!'
+                            
+                            with open('albums.xlsx', 'wb') as xlsx_file:
+                                parsed_spotify_data.to_excel(xlsx_file)
+                            
+                            print(f'Successfully created Excel file')
+            
+                            text = f"""
+                                    Hello! Thank you for using the Spotify Data ETL.
+                                    Your file is attached to this email."""
+                                
+                            subject = f'{artist} Spotify Albums'
+                
+                            with open('albums.xlsx', 'rb') as attachment:
+                                yag.send(to=additional_email_list,
+                                subject=subject,
+                                contents=text,
+                                attachments=attachment
+                                ) 
+                        except Exception as e:
+                            print(f'Could not send the Excel file. Please rerun the script')
+                            print(e)
+                            
+                        
+                        print(control_flow_maintainer)
+            
+                    if file_type_question == '3':
+                        try:
+                            artist=str(input(f'Enter the name of the artist:'))
+                            additional_emails=str(input(f'Enter the list of emails separated with a comma:'))
+                            additional_email_list=list(additional_emails.split(sep=','))
+                            database = 'spotify_artist_albums.sqlite'
+                            control_flow_maintainer=f'Your emails have sent!'
+                            conn = sqlite3.connect(database)
+                                
+                            with open(database, 'w'):
+                                parsed_spotify_data.to_sql(name='albums', con=conn)
+                                conn.close()
+                    
+                            print(f'Successfully created database file')
+
+                            text = f"""
+                                    Hello! Thank you for using the Spotify Data ETL.
+                                    Your file is attached to this email."""
+                                
+                            subject = f'{artist} Spotify Albums'
+                
+                            with open(database, 'r') as attachment:
+                                yag.send(to=additional_email_list,
+                                subject=subject,
+                                contents=text,
+                                attachments=attachment
+                                )
+                        except Exception as e:
+                            print(f'Could not send the sqlite file. Please rerun the script')
+                            print(e)
+                            
+                            
+                        print(control_flow_maintainer)
+    
+                except Exception as e:
+                    print(f'Sorry there was an error')
+                    print(e)
+       
         if file_location_question == '2':
             try:
                 ACCESS_KEY=str(input(f'Enter your Access Key:'))
@@ -140,7 +273,7 @@ def spotify_data_loader():
                 aws_session_token=SESSION_TOKEN
                 )
                 s3_client = boto3.client('s3')
-                file_type_question=str(input(f'Enter 1 to send the file as a csv file, 2 for xlsv file, 3 for sqlite file:'))
+                file_type_question=str(input(f'Enter 1 to send the file as a csv file, 2 for xlsx file, 3 for sqlite file:'))
                 if file_type_question == '1':
                     try:
                         with open('albums.csv','w') as csv_file:
@@ -169,13 +302,13 @@ def spotify_data_loader():
                     try:
                         database = 'spotify_artist_albums.sqlite'
                         conn = sqlite3.connect(database)
-                        with open(database, 'w') as sql_file:
+                        with open(database, 'w'):
                             parsed_spotify_data.to_sql(name='albums', con=conn)
                             conn.close()
               
                         file=Path(database)
                         print(f'Successfully created database file')
-                    except:
+                    except Exception as e:
                         print(f'Could not send sqlite file. Please rerun the script')
                         return file_type_question
 
@@ -187,16 +320,6 @@ def spotify_data_loader():
             
             except Exception as e:
                 print(f'There was an issue uploading the Spotify data to your S3 bucket. Please try again')
-                print(e)
-
-        if file_location_question == '3':
-            try:
-                sparktester()
-                sparked_spotify_data=SparkSession.builder.getOrCreate().createDataFrame(parsed_spotify_data)
-                print("Spark successfully initialized")
-                print(sparked_spotify_data)
-            except Exception as e:
-                print(f'Could not create/send dataframe to Apache Spark. Please rerun the script')
                 print(e)
                             
     except Exception as e:
@@ -238,10 +361,7 @@ if __name__ == '__main__':
         token=auth.get_access_token(as_dict=False)
         sp=spotipy.Spotify(auth=token)
         spotify_data=sp.artist_albums(artist_id=artist_id, album_type='album', country='US', limit=50, offset=0)   
-        # The issue is that you cant use api output file for everything and must somehow use the output file only
-        # The output.json needs to be saved as a variable along with being used in a context manager?
-        # Set a variable equal to open(output.json location)
-        # Set a variable equal to the path of the new output file
+        
         with open('output.json', 'w') as api_output_file:
             json.dump(spotify_data,api_output_file,sort_keys=True)
         
