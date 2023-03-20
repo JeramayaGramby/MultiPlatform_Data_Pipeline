@@ -8,23 +8,12 @@ import sqlite3
 import spotipy
 import spotipy.oauth2 as oauth2
 import boto3
-import smtplib,ssl
-from email import encoders
 import yagmail
 from datetime import date
-import openpyxl
-# List all of the songs that Drake appears on
 
-# List all the songs that Drake's competition has appeared on
-# Find all your spotify recent songs, create a pyspark dataframe, transform the dataframe and then send it to a file that gets sent
-# automatically to an S3 bucket.
-# and use an asyncio function in a loop to automatically run the data pipeline every 24 hours.
-# current_user_recently_played(limit=50, after=None, before=None)
+# These commands are for the data loader. 
+# This function should go first before data validator
 
-# Put your email and password in environment variables
-
-# Data validator function
-# These commands are for the data loader. This function should go first before data validator
 def spotify_data_loader():
     try:
         file_location_question=str(input(f'Enter 1 to send the data through Gmail, Enter 2 to send the data to S3:'))

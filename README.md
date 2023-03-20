@@ -11,15 +11,12 @@ This exploratory project was initially created to for the sole purpose of pullin
 
 This Spotify Data ETL finds a list of albums for each artist that you put in. After entering your Spotify API credentials, it converts the Spotify API response to a json file. The json file gets converted into the file type of the user's choice (csv, xlsv or sqlite). This ETL comes with a built-in pub-sub model, and a pipeline for S3. <br><br>
 
-First, it queries the Spotify API to find the list of albums for a specified Spotify artist. Then it converts the data to a CSV file, Excel file (xlsv), or Sqlite table.<br><br> 
-
-The script then allows users to send the file to cloud storage on S3, or by email. Users can send data to multiple emails and future versions will allow the ability to send data to a user specified list of cloud data storage and analytics devices on more AWS cloud storage platforms (S3, Kinesis, Redshift).<br><br>
+Users can send data to multiple emails and future versions will allow the ability to send data to a user specified list of cloud data storage and analytics devices on more AWS cloud storage platforms (Kinesis, Redshift, RDS).<br><br>
  
 
 ## Use Cases<br>
 
-This data pipeline script has many use cases. The primary use case is to serve as an automated data pipeline for Spotify data. However, it can also serve as a data pipeline 
-template that can be used to create more complex pipelines.<br><br>
+This data pipeline script has many use cases. The primary use case is to serve as an automated data pipeline for Spotify data. However, it can also serve as a data pipeline template that can be used to create more complex pipelines.<br><br>
 
 ## Instructions:
 
